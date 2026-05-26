@@ -1,0 +1,39 @@
+spring:
+  application:
+    name: worker-service
+  datasource:
+    url: jdbc:postgresql://localhost:5432/jobs_db   # shares jobs_db to update job status
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    listener:
+      simple:
+        prefetch: 5                 # pull 5 messages at a time per consumer
+
+server:
+  port: 8083
+
+worker:
+  thread-pool-size: 10             # tune based on CPU cores — we'll revisit this in Phase 4
+
+file:
+  upload-dir: ${FILE_UPLOAD_DIR:./uploads}
+  output-dir: ${FILE_OUTPUT_DIR:./processed}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+
+logging:
+  level:
+    com.imageplatform: DEBUG
