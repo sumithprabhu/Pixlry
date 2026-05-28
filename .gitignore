@@ -1,0 +1,13 @@
+target/
+*.class
+*.jar
+*.war
+*.ear
+.idea/
+*.iml
+*.iws
+.DS_Store
+*.log
+uploads/
+processed/
+.env
