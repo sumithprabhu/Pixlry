@@ -11,8 +11,8 @@
 
 - [x] **0.1** Architecture deep-dive — why microservices, what each service owns, and the data flow
 - [x] **0.2** Maven multi-module project setup (parent POM + child modules)
-- [ ] **0.3** Docker Compose skeleton — PostgreSQL, Redis, RabbitMQ running locally
-- [ ] **0.4** Shared library module (`common`) — DTOs, exceptions, constants
+- [x] **0.3** Docker Compose skeleton — PostgreSQL, Redis, RabbitMQ running locally
+- [x] **0.4** Shared library module (`common`) — DTOs, exceptions, constants
 
 ---
 
