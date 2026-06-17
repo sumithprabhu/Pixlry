@@ -35,3 +35,6 @@ management:
 logging:
   level:
     com.imageplatform: DEBUG
+
+# Micrometer Prometheus registry must be on classpath for /actuator/prometheus
+# Add io.micrometer:micrometer-registry-prometheus to pom.xml when wiring metrics
