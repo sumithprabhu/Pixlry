@@ -201,3 +201,6 @@
 ---
 
 *Last updated: 0.2 done — moving to 0.3 Docker Compose skeleton*
+
+---
+*Phase 0 complete. Phase 1 (Auth Service) in progress.*
