@@ -7,6 +7,14 @@ spring:
       port: ${REDIS_PORT:6379}
   cloud:
     gateway:
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins:
+              - "http://localhost:4200"
+            allowedMethods: ["GET","POST","PUT","DELETE","OPTIONS"]
+            allowedHeaders: ["*"]
+            allowCredentials: true
       routes:
         - id: auth-service
           uri: http://${AUTH_SERVICE_HOST:localhost}:8081
