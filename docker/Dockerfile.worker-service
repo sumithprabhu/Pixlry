@@ -1,0 +1,18 @@
+FROM maven:3.9.6-eclipse-temurin-21 AS builder
+WORKDIR /build
+COPY pom.xml .
+COPY common ./common
+COPY worker-service ./worker-service
+RUN mvn package -pl worker-service -am -DskipTests -q
+
+FROM eclipse-temurin:21-jre-alpine
+WORKDIR /app
+COPY --from=builder /build/worker-service/target/*.jar app.jar
+# Worker needs write access to uploads (reads) and processed (writes) directories
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup && \
+    mkdir -p /app/uploads /app/processed && \
+    chown appuser:appgroup /app/uploads /app/processed
+USER appuser
+EXPOSE 8083
+# Worker is CPU-bound — allow more heap than default for image buffers in memory
+ENTRYPOINT ["java", "-XX:+UseContainerSupport", "-XX:MaxRAMPercentage=80.0", "-jar", "app.jar"]

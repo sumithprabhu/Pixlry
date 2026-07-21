@@ -1,6 +1,58 @@
 version: '3.8'
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Pixlry — Full Stack Docker Compose
+#
+# STARTUP ORDER (enforced by depends_on + health checks):
+#   1. postgres, redis, rabbitmq  — infrastructure with health checks
+#   2. auth-service               — needs postgres
+#   3. api-gateway                — needs auth-service + redis
+#   4. job/notification/analytics — need postgres + rabbitmq
+#   5. worker-service             — needs rabbitmq only (no DB)
+#
+# WHY health checks on infrastructure?
+#   depends_on: [postgres] waits for the CONTAINER to start, not for Postgres
+#   to accept connections. Without health checks, services fail with "connection refused".
+#
+# HOW TO RUN:
+#   cd docker && docker-compose up -d              # start everything
+#   docker-compose logs -f job-service             # tail one service
+#   docker-compose down -v                         # stop + wipe volumes (fresh start)
+#
+# PORTS:
+#   8080  API Gateway (main entry point for all requests)
+#   8081  Auth Service
+#   8082  Job Service
+#   8083  Worker Service
+#   8084  Analytics Service
+#   8085  Notification Service
+#   5432  PostgreSQL
+#   6379  Redis
+#   5672  RabbitMQ AMQP
+#   15672 RabbitMQ Management UI  → http://localhost:15672  (guest/guest)
+#   9090  Prometheus               → http://localhost:9090
+#   3000  Grafana                  → http://localhost:3000   (admin/admin)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Reusable env block — all services share this base environment
+x-common-env: &common-env
+  DB_USERNAME: postgres
+  DB_PASSWORD: postgres
+  RABBITMQ_HOST: rabbitmq
+  RABBITMQ_PORT: 5672
+  RABBITMQ_USERNAME: guest
+  RABBITMQ_PASSWORD: guest
+  REDIS_HOST: redis
+  REDIS_PORT: 6379
+  # MUST match across all services — gateway validates, auth-service issues
+  JWT_SECRET: pixlry-dev-secret-must-be-at-least-32-chars
+  FILE_UPLOAD_DIR: /app/uploads
+  FILE_OUTPUT_DIR: /app/processed
+
 services:
+
+  # ── Infrastructure ──────────────────────────────────────────────────────────
+
   postgres:
     image: postgres:16-alpine
     container_name: pixlry-postgres
@@ -44,9 +96,123 @@ services:
       - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "ping"]
-      interval: 10s
-      timeout: 5s
+      interval: 15s
+      timeout: 10s
       retries: 5
+
+  # ── Application Services ────────────────────────────────────────────────────
+
+  auth-service:
+    build:
+      context: ..                             # project root = build context for Maven
+      dockerfile: docker/Dockerfile.auth-service
+    container_name: pixlry-auth
+    environment:
+      <<: *common-env
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/auth_db
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: on-failure
+
+  api-gateway:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.api-gateway
+    container_name: pixlry-gateway
+    environment:
+      <<: *common-env
+      # Service hostnames in Docker Compose = container names / service names
+      AUTH_SERVICE_HOST: auth-service
+      JOB_SERVICE_HOST: job-service
+      WORKER_SERVICE_HOST: worker-service
+      NOTIFICATION_SERVICE_HOST: notification-service
+      ANALYTICS_SERVICE_HOST: analytics-service
+    ports:
+      - "8080:8080"
+    depends_on:
+      - auth-service
+      redis:
+        condition: service_healthy
+    restart: on-failure
+
+  job-service:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.job-service
+    container_name: pixlry-job
+    environment:
+      <<: *common-env
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/jobs_db
+    volumes:
+      - uploads_data:/app/uploads
+    ports:
+      - "8082:8082"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: on-failure
+
+  worker-service:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.worker-service
+    container_name: pixlry-worker
+    environment:
+      <<: *common-env
+      WORKER_THREAD_POOL_SIZE: 4
+    volumes:
+      # Shared volume: job-service writes uploaded images here, worker reads them
+      - uploads_data:/app/uploads
+      - processed_data:/app/processed
+    ports:
+      - "8083:8083"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: on-failure
+
+  notification-service:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.notification-service
+    container_name: pixlry-notification
+    environment:
+      <<: *common-env
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/notifications_db
+    ports:
+      - "8085:8085"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: on-failure
+
+  analytics-service:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.analytics-service
+    container_name: pixlry-analytics
+    environment:
+      <<: *common-env
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/analytics_db
+    ports:
+      - "8084:8084"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: on-failure
+
+  # ── Monitoring ──────────────────────────────────────────────────────────────
 
   prometheus:
     image: prom/prometheus:latest
@@ -55,6 +221,9 @@ services:
       - "9090:9090"
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    depends_on:
+      - auth-service
+      - job-service
 
   grafana:
     image: grafana/grafana:latest
@@ -63,6 +232,8 @@ services:
       - "3000:3000"
     environment:
       GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - grafana_data:/var/lib/grafana
     depends_on:
       - prometheus
 
@@ -70,3 +241,6 @@ volumes:
   postgres_data:
   redis_data:
   rabbitmq_data:
+  uploads_data:     # shared: job-service writes, worker-service reads
+  processed_data:   # worker-service output, served to users for download
+  grafana_data:

@@ -14,13 +14,20 @@
     <artifactId>worker-service</artifactId>
     <name>Worker Service</name>
 
+    <!--
+        WHY NO DATABASE HERE?
+        The worker's only job is: receive image job from queue → process image → publish result.
+        It does NOT persist anything. Job status updates go back via RabbitMQ to job-service,
+        which owns the jobs_db. This keeps the worker stateless and horizontally scalable —
+        you can run 10 worker instances without any shared-DB coordination.
+    -->
     <dependencies>
         <dependency>
             <groupId>com.imageplatform</groupId>
             <artifactId>common</artifactId>
         </dependency>
 
-        <!-- Minimal web — just for health/metrics endpoints, no user-facing API -->
+        <!-- Minimal web — only for /actuator/health endpoint -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
@@ -31,20 +38,17 @@
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-jpa</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
+        <!-- Micrometer: exposes /actuator/prometheus for Prometheus scraping -->
         <dependency>
-            <groupId>org.postgresql</groupId>
-            <artifactId>postgresql</artifactId>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
             <scope>runtime</scope>
         </dependency>
 
-        <!-- Image processing -->
+        <!-- Image processing library — handles resize, thumbnail, format conversion -->
         <dependency>
             <groupId>net.coobird</groupId>
             <artifactId>thumbnailator</artifactId>

@@ -8,12 +8,22 @@ spring:
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
-      ddl-auto: validate          # never create/drop in any real environment — Flyway owns this
+      # "validate" = Hibernate checks that entity fields match DB columns on startup.
+      # It does NOT create or alter tables — Flyway owns schema changes.
+      # Use "create-drop" only in isolated unit tests, never in dev/prod.
+      ddl-auto: validate
     show-sql: false
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
+  flyway:
+    # Flyway runs migrations from src/main/resources/db/migration on startup.
+    # Versioned scripts (V1__, V2__) run once. Repeatable scripts (R__) run when changed.
+    # The flyway_schema_history table tracks what has already been applied.
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: false   # set true only when adding Flyway to an existing DB
 
 server:
   port: 8081

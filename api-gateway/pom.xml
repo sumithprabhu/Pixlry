@@ -38,6 +38,12 @@
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
+        <!-- Expose /actuator/prometheus for Grafana scraping -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+
         <!-- JWT validation at the gateway -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>

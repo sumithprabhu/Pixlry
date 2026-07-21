@@ -48,6 +48,24 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- Flyway: manages DB schema migrations (V1__, V2__ scripts in db/migration) -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Micrometer Prometheus: exposes /actuator/prometheus for Prometheus scraping -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
         <!-- JWT — io.jsonwebtoken (JJWT) -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>

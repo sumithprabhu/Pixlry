@@ -1,0 +1,43 @@
+# ── Stage 1: Build ────────────────────────────────────────────────────────────
+# WHY MULTI-STAGE?
+#   The builder stage has Maven + JDK (~600MB). The runtime stage only has JRE (~200MB).
+#   Multi-stage builds keep the final image small — we don't ship build tools to prod.
+#
+# WHY maven:eclipse-temurin-21 AND NOT maven:alpine?
+#   Alpine uses musl libc. Some JVM internals behave differently on musl vs glibc.
+#   Eclipse Temurin on standard glibc is the production-safe choice.
+FROM maven:3.9.6-eclipse-temurin-21 AS builder
+WORKDIR /build
+
+# Copy parent POM first — Docker caches this layer.
+# If only service code changes (not the POM), Maven dependency download is skipped.
+COPY pom.xml .
+
+# common must be built before any service that depends on it
+COPY common ./common
+
+# This service's source
+COPY auth-service ./auth-service
+
+# -pl = project list (build only auth-service)
+# -am = also make dependencies (builds common first)
+# -DskipTests = tests run in CI, not in Docker build
+RUN mvn package -pl auth-service -am -DskipTests -q
+
+# ── Stage 2: Runtime ──────────────────────────────────────────────────────────
+FROM eclipse-temurin:21-jre-alpine
+WORKDIR /app
+
+COPY --from=builder /build/auth-service/target/*.jar app.jar
+
+# Run as non-root — containers should never run as root in production.
+# If the app is compromised, the attacker gets a user with minimal privileges.
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+USER appuser
+
+EXPOSE 8081
+
+# -XX:+UseContainerSupport: JVM respects Docker memory limits instead of using host RAM.
+# -XX:MaxRAMPercentage=75.0: use 75% of container's memory limit for heap.
+# Without these, the JVM may grab more memory than the container allows → OOMKilled.
+ENTRYPOINT ["java", "-XX:+UseContainerSupport", "-XX:MaxRAMPercentage=75.0", "-jar", "app.jar"]

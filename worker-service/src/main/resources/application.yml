@@ -1,14 +1,6 @@
 spring:
   application:
     name: worker-service
-  datasource:
-    url: jdbc:postgresql://localhost:5432/jobs_db   # shares jobs_db to update job status
-    username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:postgres}
-  jpa:
-    hibernate:
-      ddl-auto: validate
-    show-sql: false
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
     port: ${RABBITMQ_PORT:5672}
@@ -16,13 +8,22 @@ spring:
     password: ${RABBITMQ_PASSWORD:guest}
     listener:
       simple:
-        prefetch: 5                 # pull 5 messages at a time per consumer
+        # prefetch = how many unacknowledged messages one consumer pulls at a time.
+        # Too high: one slow worker hogs messages while others sit idle.
+        # Too low: too many round-trips to the broker, reduced throughput.
+        # 5 is a reasonable default for CPU-bound image processing.
+        prefetch: 5
+        acknowledge-mode: auto  # ACK after listener returns; NACK + requeue on exception
 
 server:
   port: 8083
 
 worker:
-  thread-pool-size: 10             # tune based on CPU cores — we'll revisit this in Phase 4
+  # Thread pool size = number of images processed concurrently per worker instance.
+  # Rule of thumb for CPU-bound work: num_cores (not num_cores * 2).
+  # For I/O-bound work (network, disk): num_cores * 2 or higher.
+  # Image processing is CPU-bound, so 4-8 is reasonable on typical dev machines.
+  thread-pool-size: ${WORKER_THREAD_POOL_SIZE:4}
 
 file:
   upload-dir: ${FILE_UPLOAD_DIR:./uploads}
@@ -33,6 +34,9 @@ management:
     web:
       exposure:
         include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
 
 logging:
   level:
