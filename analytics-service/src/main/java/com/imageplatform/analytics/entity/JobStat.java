@@ -2,8 +2,6 @@ package com.imageplatform.analytics.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-
 import java.time.Instant;
 import java.util.UUID;
 
@@ -46,6 +44,10 @@ public class JobStat {
 
     private Long processingTimeMs;
 
-    @CreationTimestamp
     private Instant recordedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        recordedAt = Instant.now();
+    }
 }

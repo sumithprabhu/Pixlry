@@ -4,9 +4,6 @@ import com.imageplatform.common.constants.JobStatus;
 import com.imageplatform.common.constants.OperationType;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
@@ -51,9 +48,16 @@ public class Job {
     @Version
     private Long version;  // optimistic locking
 
-    @CreationTimestamp
     private Instant createdAt;
-
-    @UpdateTimestamp
     private Instant updatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = updatedAt = Instant.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = Instant.now();
+    }
 }

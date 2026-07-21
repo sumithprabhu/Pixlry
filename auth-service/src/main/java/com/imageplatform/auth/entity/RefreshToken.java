@@ -24,5 +24,6 @@ public class RefreshToken {
     @Column(nullable = false)
     private Instant expiresAt;
 
+    @Builder.Default
     private boolean revoked = false;
 }

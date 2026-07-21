@@ -2,9 +2,6 @@ package com.imageplatform.auth.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
 import java.time.Instant;
 import java.util.UUID;
 
@@ -33,11 +30,20 @@ public class User {
     @Column(nullable = false)
     private Role role;
 
+    // @Builder.Default required — Lombok @Builder ignores field initializers without it
+    @Builder.Default
     private boolean enabled = true;
 
-    @CreationTimestamp
     private Instant createdAt;
-
-    @UpdateTimestamp
     private Instant updatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = updatedAt = Instant.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = Instant.now();
+    }
 }

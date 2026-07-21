@@ -18,8 +18,10 @@ public class ResizeProcessor {
     private String outputDir;
 
     public String process(JobCreatedEvent event) {
-        int width  = Integer.parseInt(event.getParameters().getOrDefault("width",  "800"));
-        int height = Integer.parseInt(event.getParameters().getOrDefault("height", "600"));
+        java.util.Map<String, String> params = event.getParameters() != null
+                ? event.getParameters() : java.util.Collections.emptyMap();
+        int width  = Integer.parseInt(params.getOrDefault("width",  "800"));
+        int height = Integer.parseInt(params.getOrDefault("height", "600"));
 
         Path input  = Paths.get(event.getFilePath());
         Path output = Paths.get(outputDir, event.getJobId() + "_resized.jpg");

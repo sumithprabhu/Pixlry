@@ -1,5 +1,3 @@
-version: '3.8'
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Pixlry — Full Stack Docker Compose
 #
@@ -133,7 +131,8 @@ services:
     ports:
       - "8080:8080"
     depends_on:
-      - auth-service
+      auth-service:
+        condition: service_started
       redis:
         condition: service_healthy
     restart: on-failure

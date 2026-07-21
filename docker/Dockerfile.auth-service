@@ -9,19 +9,28 @@
 FROM maven:3.9.6-eclipse-temurin-21 AS builder
 WORKDIR /build
 
-# Copy parent POM first — Docker caches this layer.
-# If only service code changes (not the POM), Maven dependency download is skipped.
+# Copy ALL module pom.xml files — Maven reads the full reactor graph from the parent POM
+# even when using -pl. Without all pom.xml files present, Maven fails with "module does not exist".
+# This layer is cached until any pom.xml changes.
 COPY pom.xml .
+COPY common/pom.xml common/
+COPY api-gateway/pom.xml api-gateway/
+COPY auth-service/pom.xml auth-service/
+COPY job-service/pom.xml job-service/
+COPY worker-service/pom.xml worker-service/
+COPY notification-service/pom.xml notification-service/
+COPY analytics-service/pom.xml analytics-service/
 
-# common must be built before any service that depends on it
-COPY common ./common
+# Pre-download dependencies into a cached layer (only re-runs when a pom.xml changes)
+RUN mvn dependency:go-offline -pl auth-service -am -q
 
-# This service's source
-COPY auth-service ./auth-service
+# Copy source for only the modules we actually compile
+COPY common/src common/src
+COPY auth-service/src auth-service/src
 
-# -pl = project list (build only auth-service)
-# -am = also make dependencies (builds common first)
-# -DskipTests = tests run in CI, not in Docker build
+# -pl = project list (only auth-service)
+# -am = also make: builds common first since auth-service depends on it
+# -DskipTests = tests belong in CI, not in Docker image builds
 RUN mvn package -pl auth-service -am -DskipTests -q
 
 # ── Stage 2: Runtime ──────────────────────────────────────────────────────────

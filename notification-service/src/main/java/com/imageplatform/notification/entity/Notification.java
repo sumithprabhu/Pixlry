@@ -2,8 +2,6 @@ package com.imageplatform.notification.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-
 import java.time.Instant;
 import java.util.UUID;
 
@@ -27,8 +25,13 @@ public class Notification {
 
     private String message;
 
+    @Builder.Default
     private boolean read = false;
 
-    @CreationTimestamp
     private Instant createdAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = Instant.now();
+    }
 }
