@@ -7,6 +7,7 @@ import { DashboardComponent } from './dashboard/dashboard';
   selector: 'app-root',
   imports: [AuthComponent, DashboardComponent],
   template: `
+    <p style="color:white;padding:20px">Loading… loggedIn={{ loggedIn() }}</p>
     @if (loggedIn()) {
       <app-dashboard />
     } @else {

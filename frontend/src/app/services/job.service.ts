@@ -1,3 +1,23 @@
+/**
+ * FILE: job.service.ts
+ * PURPOSE: REST client for job-service, analytics-service, and notification-service
+ *          endpoints — all routed through the API Gateway at port 8080.
+ *
+ * BEARER TOKEN HEADER:
+ *   Every protected request adds "Authorization: Bearer <token>".
+ *   The gateway validates this token, extracts userId/role, and forwards
+ *   X-User-Id / X-User-Role headers to the downstream service.
+ *   Downstream services read X-User-Id from the request header instead of
+ *   decoding the JWT themselves — this is the "token relay" pattern.
+ *
+ * MULTIPART UPLOAD (uploadJob):
+ *   FormData is the browser's way of sending multipart/form-data.
+ *   We append the File object directly — the browser handles encoding.
+ *   The 'parameters' field is a JSON string that the server parses into
+ *   Map<String, String> (width, height for resize).
+ *   We do NOT set Content-Type manually — the browser adds the boundary
+ *   string automatically when it sees FormData.
+ */
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { AuthService } from './auth.service';
